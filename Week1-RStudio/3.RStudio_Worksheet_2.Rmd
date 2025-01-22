@@ -203,7 +203,7 @@ In the R code chunk below, do the following:
 3) Use the print command from the handout to see the results of each correlation analysis.
 
 ```{r}
-#require("psych")
+require("psych")
 require("corrplot")
 cor2 <- corr.test(meso.num, method = "pearson", adjust = "BH")
 print(cor2, digits=3)
@@ -263,17 +263,30 @@ Using the R code chunk below, do the following:
 4) Use a one-way analysis of variance (ANOVA) to test the null hypothesis that zooplankton biomass is affected by the nutrient treatment.
 
 ```{r}
-# Create a small test data frame
-meso_test <- data.frame(
-  NUTS = c('L', 'M', 'H', 'L', 'M', 'H'),
-  ZP = c(10, 20, 30, 15, 25, 35)
-)
-
-# Test tapply with the small data frame
-zp.mean_test <- tapply(meso_test$ZP, meso_test$NUTS, mean)
-print(zp.mean_test)
+NUTS <- factor(meso$NUTS, levels = c('L', 'M', 'H'))
+zp.means <- tapply(meso$ZP, NUTS, mean)
+sem <- function(x){
+  sd(na.omit(x)/sqrt(length(na.omit(x))))
+}
+zp.sem <- tapply(meso$ZP, NUTS, sem)
+bp <- barplot(zp.means, ylim =c(0, round(max(meso$ZP), digits = 0)),
+              pch = 15, cex = 1.25, las = 1, cex.lab = 1.4, cex.axis = 1.25,
+              xlab = "nutrient supply",
+              ylab = "zooplankton biomass (mg/L)",
+              names.arg = c("low", "medium", "high"))
+arrows(x0 = bp, y0 = zp.means, y1 = zp.means - zp.sem, angle = 90,
+       length = 0.1, lwd = 1)
+arrows(x0 = bp, y0 = zp.means, y1 = zp.means + zp.sem, angle = 90,
+       length = 0.1, lwd = 1)
 ```
-              
+```{r}
+fitanova <- aov(ZP ~ NUTS, data = meso)
+summary(fitanova)
+TukeyHSD(fitanova)
+par(mfrow = c(2, 2), mar = c(5.1, 4.1, 4.1, 2.1))
+plot(fitanova)
+```
+
 ## SYNTHESIS: SITE-BY-SPECIES MATRIX
 
 In the R code chunk below, load the zoops.txt data set in your **3.RStudio** data folder.
@@ -302,15 +315,43 @@ The remaining columns of data refer to the biomass (µg/L) of different zooplank
 Describe what you learned below in the "Answer" section and include appropriate code in the R chunk.
 
 ```{r}
+z.m. <- as.matrix(read.table("data/zoops.txt", sep = "\t", header = FALSE))
+
+str(z.m.)
+
+ZP.L <- z.m.[2:9,3:11]
+ZP.L <- apply(ZP.L, 2, as.numeric)
+bar_names <- c("CAL", "DIAP", "CYL", "BOSM", "SIMO", "CERI", "NAUP", "DLUM", "CHYD")
+column_means <- colMeans(ZP.L, na.rm = FALSE)
+barplot(column_means,  ylim = c(0, 5000), main = "ZP biomass - low nut",
+        col = "skyblue", 
+        ylab = "Average biomass (mg/L)", xlab = "Species", 
+        names.arg = bar_names)
+
+ZP.M <- z.m.[10:17,3:11]
+ZP.M <- apply(ZP.M, 2, as.numeric)
+bar_names <- c("CAL", "DIAP", "CYL", "BOSM", "SIMO", "CERI", "NAUP", "DLUM", "CHYD")
+column_means <- colMeans(ZP.M, na.rm = FALSE)
+barplot(column_means,  ylim = c(0, 5000), main = "ZP biomass - med nut", 
+        col = "skyblue", 
+        ylab = "Average biomass (mg/L)", xlab = "Species", 
+        names.arg = bar_names)
 
 
-
-
+ZP.H <- z.m.[18:25,3:11]
+ZP.H <- apply(ZP.H, 2, as.numeric)
+bar_names <- c("CAL", "DIAP", "CYL", "BOSM", "SIMO", "CERI", "NAUP", "DLUM", "CHYD")
+column_means <- colMeans(ZP.H, na.rm = FALSE)
+barplot(column_means,  ylim = c(0, 5000), main = "ZP biomass - high nut", 
+        col = "skyblue", 
+        ylab = "Average biomass (mg/L)", xlab = "Species", 
+        names.arg = bar_names)
 ```
+
+>Answer: It seems as though the *Chydorus* sp. has the strongest change in abundance due to nutrient concentration. *Chydorus* sp. goes from about 1000 mg/L in low nutrient concentrations to 5000 mg/L in high nutrient concentrations. *Simocephallus* sp. also responds to nutrient concentration, although at a much smaller scale. 
 
 ## SUBMITTING YOUR WORKSHEET
 Use Knitr to create a PDF of your completed **3.RStudio_Worksheet.Rmd** document, push the repo to GitHub, and create a pull request.
 Please make sure your updated repo include both the PDF and RMarkdown files.
 
 This assignment is due on **Wednesday, January 22^nd^, 2025 at 12:00 PM (noon)**.
-
