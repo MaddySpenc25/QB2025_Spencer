@@ -1,0 +1,56 @@
+---
+title: "5. AlphaDiversity_Handout.Rmd"
+output: html_document
+date: "2025-01-24"
+---
+
+
+```{r}
+
+```
+
+# Observed richness
+
+```{r}
+data(BCI)
+dim(BCI)
+S.obs <- function(x = ""){
+  rowSums(x > 0) * 1
+}
+S.obs(BCI)
+specnumber(BCI)
+```
+# Coverage
+
+```{r}
+C <- function(x = ""){
+  1 - (rowSums(x== 1) / rowSums(x))
+}
+C(BCI)
+```
+
+# Estimated Richness
+```{r}
+soilbac <- read.table("data/soilbac.txt", sep = "\t", header= TRUE, row.names = 1)
+soilbac.t <- as.data.frame(t(soilbac))
+soilbac1 <- soilbac.t[1,]
+```
+
+```{r}
+S.chao1 <- function(x = ""){
+  S.obs(x) + (sum(x == 1)^2) / (2 * sum(x == 2))
+}
+S.chao1(soilbac1)
+```
+
+```{r}
+S.chao2 <- function(site = "", SbyS =""){
+  SbyS = as.data.frame(SbyS)
+  x = SbyS[site, ]
+  SbyS.pa <- (SbyS > 0) * 1
+  Q1 = sum(colSums(SbyS.pa) == 1)
+  Q2 = sum(colSums(SbyS.pa) == 2)
+  S.chao2 = S.obs(x) + (Q1^2)/(2 * Q2)
+  return(S.chao2)
+}
+```
