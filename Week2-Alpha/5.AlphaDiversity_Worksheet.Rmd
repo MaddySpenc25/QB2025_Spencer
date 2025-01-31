@@ -2,8 +2,9 @@
 title: '5\. Worksheet: Alpha Diversity'
 author: "Maddy Spencer; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
-output: pdf_document
-geometry: margin=2.54cm
+output:
+  pdf_document:
+    latex_engine: xelatex
 ---
 
 ## OVERVIEW
@@ -45,6 +46,10 @@ require("vegan")
 In the R code chunk below, do the following:
 1) Load the BCI dataset, and 
 2) Display the structure of the dataset (if the structure is long, use the `max.level = 0` argument to show the basic information).
+
+```{r, include = FALSE}
+options(tinytex.verbose = TRUE)
+```
 
 ```{r}
 data("BCI")
