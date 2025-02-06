@@ -382,9 +382,46 @@ Use one of the tools introduced in the beta diversity module to visualize your d
 Describe any interesting patterns and identify a hypothesis is relevant to the principles of biodiversity. 
 
 ```{r}
-setwd("/cloud/project/QB2025_Spencer")
-getwd()
+Fungi_path <- "/cloud/project/QB2025_Spencer/MAT_fungal_abundances.txt"
+Fungi_data <- read.table(Fungi_path, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
 ```
 ```{r}
-load(MAT_fungal_abundances.txt)
+#install.packages(dplyr)
+install.packages("tidyr")
+require(dplyr)
+require(tidyr)
+
+Fungi_path <- "/cloud/project/QB2025_Spencer/MAT_fungal_abundances.txt"
+Fungi_data <- read.table(Fungi_path, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
+Fungi_data$Relative.Abundance <- as.numeric(Fungi_data$Relative.Abundance)
+
+# Slim down the data to only columns needed
+slim <- Fungi_data %>%
+  select(Plot, Treatment, Species, Relative.Abundance)
+
+# Change data so that each species is a column, values are the relative.abundance, and rows are each plot/site
+ExpandFungi_data <- slim %>%
+  pivot_wider(names_from = Species, values_from = Relative.Abundance, values_fill = list(Relative.Abundance = 0))
+
+# Sort the expanded data
+Sorted_ExpandFungi_data <- ExpandFungi_data %>%
+  arrange(Treatment)
+
+# Calculate Bray-Curtis distance
+ExpandFun_data.db <- vegdist(Sorted_ExpandFungi_data[, -c(1,2)], method = "bray", upper = TRUE, diag = TRUE)
+
+# Create a new variable and classify it as a matrix
+heatmap_matrix <- as.matrix(ExpandFun_data.db)
+
+# Assign row and column names using the "Plot" column from Sorted_ExpandFungi_data
+rownames(heatmap_matrix) <- Sorted_ExpandFungi_data$Plot
+colnames(heatmap_matrix) <- Sorted_ExpandFungi_data$Plot
+
+# Plot the heatmap using the matrix created
+levelplot(heatmap_matrix, aspect = "iso", col.regions = inferno,
+          xlab = "Toolik Lake", ylab = "Toolik Lake",
+          scales = list(x = list(rot = 90, cex = 0.7), y = list(cex = 0.7)),
+          main = "Bray-Curtis Distance")
 ```
+
+> There are no clearly distinct patterns as many of the comparisons fall in 0.6 to 1 in similarity. There seems to be more dissimilarity between the warmed plots and the control, while the fertilized plots are extremely similar to the control. Interestingly, the combined treatment seems to vary less from control than the only warmed plots. Based on this, I would hypothesize that warming disrupts the root communities, whereas fertilizer has little to no effect on root communities. 
