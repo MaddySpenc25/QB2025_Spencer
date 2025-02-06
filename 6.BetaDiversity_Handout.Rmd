@@ -1,0 +1,12 @@
+---
+title: "6.BetaDiversity_Handout.Rmd"
+output: html_document
+date: "2025-01-31"
+---
+
+```{r}
+rm(list = ls())
+setwd(./Week3-Beta)
+```
+
+## Overview
