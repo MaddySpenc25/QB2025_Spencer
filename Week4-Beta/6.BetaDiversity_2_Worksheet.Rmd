@@ -53,6 +53,8 @@ In the R code chunk below, load the `doubs` dataset from the `ade4` package
 
 ```{r}
 # note, pleae do not print the dataset when submitting
+# install.packages("indicspecies")
+require(indicspecies)
 require(ade4)
 data(doubs)
 ```
@@ -276,6 +278,8 @@ Interpret the findings of your data with respect to principles of biodiversity.
 #install.packages("tidyr")
 require(dplyr)
 require(tidyr)
+require(gplots)
+require(viridis)
 
 Fungi_path <- "/cloud/project/QB2025_Spencer/MAT_fungal_abundances.txt"
 Fungi_data <- read.table(Fungi_path, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
@@ -313,7 +317,7 @@ plot(fun.ward, main = "Fungal Diversity: Ward's Clustering",
 gplots::heatmap.2(heatmap_matrix,
                   distfun = function(x) vegdist(x, method = "bray"),
                   hclustfun = function(x) hclust(x, method = "ward.D2"),
-                  col = viridis, trace = "none", density.info = "none")
+                  col = "viridis", trace = "none", density.info = "none")
 ```
 
 ```{r}
