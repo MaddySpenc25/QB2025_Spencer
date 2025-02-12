@@ -42,10 +42,9 @@ In the R code chunk below, provide the code to:
 4. load the `vegan` R package (be sure to install if needed).  
 
 ```{r}
-
-
-
-
+rm(list = ls())
+getwd()
+require(vegan)
 ```
 
 ## 2) LOADING DATA
@@ -54,10 +53,10 @@ In the R code chunk below, load the `doubs` dataset from the `ade4` package
 
 ```{r}
 # note, pleae do not print the dataset when submitting
-
-
-
+require(ade4)
+data(doubs)
 ```
+
 ## 3) HYPOTHESIS TESTING
 
 ### A.  Multivariate Procedures for Categorical Designs
@@ -69,21 +68,42 @@ In the code chunk below, test the hypothesis that fish community composition var
 2. use the multivariate analyses for categorical predictors to describe how fish community structure relates to habitat quality.
 
 ```{r}
+require(vegan)
+
+fish <- doubs$fish
+fish <- fish[-8, ]
+str(fish)
+
+env <- doubs$env
+env <- env[-8, ]
+
+xy <- doubs$xy
+xy <- xy[-8, ]
+
+quality <- c(rep("HQ", 13), rep("MQ", 5), rep("LQ", 6), rep("MQ", 5))
 
 
+fish.ds <- vegdist(fish, method = "bray", diag = TRUE, binary = TRUE)
+fish.db <- vegdist(fish, method = "bray", diag = TRUE)
 
+adonis2(fish ~ quality, method = "bray", permutations = 999)
 
+indval <- multipatt(fish, cluster = quality, func = "IndVal.g",
+                    control = how(nperm=999))
+summary(indval)
 
-
-
-
-
+fish.rel <- decostand(fish, method = "total")
+phi <- multipatt(fish.rel, cluster = quality, func = "r.g",
+                 control = how(nperm=999))
+summary(phi)
 ```
 
 ***Question 1***: Based on the PERMANOVA, IndVal, and phi coefficient analyses, what did you learn about the relationship between habitat quality and the fish species composition?
 Are the different analyses consistent with one another and do they agree with the visualizations (heat maps, cluster dendograms, ordinations) that you created?
 
-> ***Answer 1***: 
+> ***Answer 1***: It appears as though water quality does significantly alter the diversity within the stream, as indicated by the PERMANOVA p-value being less than 0.001. The phi tests suggest that species *Salmo trutta fario* (Satr), *Phoxinus phoxinus* (Phph), *Nemacheilus barbatulus* (Neba) prefer high quality river sites, which aligns with our previous PCoA analyses that suggested these fish influence clustering of the "HQ" sites 1-14. The same can be said for the LQ species. In the case of the MQ species, there aren't very clear trends in these seen on other visualizations we have done prior. These analyses also align with the bray-curtis visualization that suggests farther apart sites are more dissimilar. 
+
+> The indval readout is a bit more difficult to interpret as most of the species are indicators of multiple river qualities, though the sites indicated line up well with the phi readout. In general, the different analyses seem to corroborate one another. 
 
 
 ### B.  Multivariate Procedures for Continuous Designs
@@ -95,17 +115,16 @@ In the R code chunk below, do the following:
 2. use a Mantel test to test the hypothesis that fish assemblages are correlated with stream environmental variables.
 
 ```{r}
+fish.dist <- vegdist(fish, method = "bray")
+env.dist <- vegdist(env, method = "euclid")
 
-
-
-
-
+mantel(fish.dist, env.dist)
 ```
 
 ***Question 2***: What do the results from our Mantel test suggest about fish diversity and stream environmental conditions? 
 How does this relate to your hypothesis about stream quality influencing fish communities?
 
-> ***Answer 2***:  
+> ***Answer 2***:  The mantel test produced a p-value of 0.001, suggesting there is a relationship between fish diversity and stream environmental conditions. This supports our hypothesis that that fish assemblages are correlated with stream environmental variables, but it does not provide more specific information like what environmental conditions, etc. This is functionally the same as the PERMANOVA test, but performed on data matrices that contain continuous variables rather than cateogorical, e.g. pH values rather than "acidic" vs. "basic". 
 
 ### ii.  Constrained Ordination
 In the R code chunk below, do the following:  
@@ -117,31 +136,73 @@ In the R code chunk below, do the following:
 5. calculate the explained variation on the first and second constrained axes,
 6. plot the constrained ordination results including labeled points for each site, and
 7. add vectors that demonstrate the influence of each environmental factor the constrained ordination.   
+
 ```{r}
+env.chem <- as.matrix(env[, 5:11])
+  
+doubs.dbrda <- dbrda(fish.dist ~ ., as.data.frame(env.chem))
+ordiplot(doubs.dbrda)
+    
+# Model intercept
+doubs.dbrda.mod0 <- dbrda(fish.dist ~ 1, as.data.frame(env.chem))
+ordiplot(doubs.dbrda.mod0)
 
+#Full model
+doubs.dbrda.mod1 <- dbrda(fish.dist ~ ., as.data.frame(env.chem))
 
+doubs.dbrda <- ordiR2step(doubs.dbrda.mod0, doubs.dbrda.mod1, perm.max = 200)
 
+doubs.dbrda$call
+doubs.dbrda$anova
+ordiplot(doubs.dbrda)
 
+# Permutation tests
+permutest(doubs.dbrda, permutations = 999)
+envfit(doubs.dbrda, env.chem[, c(4, 6, 7)], perm = 999)
 
+# Explained variation
+dbrda.explainvar1 <- round(doubs.dbrda$CCA$eig[1] / 
+                             sum(c(doubs.dbrda$CCA$eig, doubs.dbrda$CA$eig)), 3) * 100
+dbrda.explainvar2 <- round(doubs.dbrda$CCA$eig[2] / 
+                             sum(c(doubs.dbrda$CCA$eig, doubs.dbrda$CA$eig)), 3) * 100
 
+# Plotting ordination
+par(mar = c(5, 5, 4, 4) + 0.1)
 
+plot(scores(doubs.dbrda, display = "wa"), xlim = c(-1.3, 1.1),
+     ylim = c(-1.1, 2.7), xlab = paste("dbRDA 1 (", dbrda.explainvar1, "%)",
+     sep = ""), ylab = paste("dbRDA 2 (", dbrda.explainvar2, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5,
+     cex.axis = 1.2, axes = FALSE)
 
+# Axes
+axis(side = 1, labels = TRUE, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = TRUE, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
 
+# Points and text
+points(scores(doubs.dbrda, display = "wa"),
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+text(scores(doubs.dbrda, display = "wa"),
+     labels = row.names(scores(doubs.dbrda, display = "wa")))
 
-
-
-
-
-
-
-
-
-
+# Environmental vectors
+vectors <- scores(doubs.dbrda, display = "bp")
+arrows(0, 0, vectors[, 1], vectors[, 2],
+       lwd = 2, lty = 1, length = 0.2, col = "red")
+text(vectors[, 1], vectors[, 2], pos = 3,
+     labels = row.names(vectors))
+axis(side = 3, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2,
+     at = pretty(range(vectors[, 1])) * 2, labels = pretty(range(vectors[, 1])))
+axis(side = 4, lwd.ticks = 2, cex.axis = 1.2, las = 1, col = "red", lwd = 2.2,
+     at = pretty(range(vectors[, 2])) * 2, labels = pretty(range(vectors[, 2])))
 ```
+
 
 ***Question 3***: Based on the constrained ordination, what are the environmental variables (or groups of correlated variables) that seem to be contributing to variation in fish community structure?
 
-> ***Answer 3***: 
+> ***Answer 3***: The environmental variables dissolved oxygen, biological demand for oxygen, and nitrate concentration contribute to variation in fish community strcture based on their vectors. 
 
 ### iii. Variation Partitioning
 In the code chunk below,   
@@ -152,19 +213,57 @@ In the code chunk below,
 4. Test the significance of each of your constrained ordinations using permutation tests,
 5. Partition the variation among sites into the relative importance of space, environment, spatially structured environment, and residuals,
 6. Plot the variation partitioning output to visualize it.  
+
 ```{r}
+doubs.dbrda$anova
+
+env.mod <- model.matrix(~ oxy + bdo + nit, as.data.frame(env.chem))[, -1]
+
+rs <- rowSums(fish) / sum(fish)
+
+cat("Length of weights vector rs:", length(rs), "\n")
+cat("Number of rows in doubs$xy:", nrow(xy), "\n")
 
 
+doubs.pcnmw <- pcnm(dist(xy), w = rs, dist.ret = TRUE)
 
+positive_values <- doubs.pcnmw$values > 0
 
+doubs.space <- as.data.frame(scores(doubs.pcnmw))
+doubs.pcnm.mod0 <- dbrda(fish.db ~ 1, doubs.space)
+doubs.pcnm.mod1 <- dbrda(fish.db ~ ., doubs.space)
+step.pcnm <- ordiR2step(doubs.pcnm.mod0, doubs.pcnm.mod1, perm.max = 200)
+  
+plot(step.pcnm)
 
-
-
+step.pcnm$anova
+  
+space.mod <- model.matrix(~ PCNM2 + PCNM3 + PCNM5 + PCNM1 + 
+                              PCNM13 + PCNM16 + PCNM6, doubs.space)[, -1]
+  
+doubs.total.env <- dbrda(fish.db ~ env.mod)
+doubs.total.space <- dbrda(fish.db ~ space.mod)
+  
+doubs.env.cond.space <- dbrda(fish.db ~ env.mod + Condition(space.mod))
+doubs.env.cond.env <- dbrda(fish.db ~ space.mod + Condition(env.mod))
+  
+permutest(doubs.env.cond.space, permutations = 999)
+permutest(doubs.env.cond.env, permutations = 999)
+permutest(doubs.total.env, permutations = 999)
+permutest(doubs.total.space, permutations = 999)
+  
+doubs.varpart <- varpart(fish.db, env.mod, space.mod)
+print(doubs.varpart)
+  
+par(mar = c(2, 2, 2, 2))
+plot(doubs.varpart)
+text(1, 0.25, "Space")
+text(0, 0.25, "Env")
 ```
 
 ***Question 4***: Interpret the variation partitioning results.   
 
-> ***Answer 4***: 
+> ***Answer 4***: Our partitioning results determined that 0.13 of the variation in fish diversity is explained by environment alone, 0.24 by space alone, 0.37 by both space and environment, and 0.27 neither space nor environment.  
 
 ## SYNTHESIS
 
@@ -172,3 +271,69 @@ Load the dataset from that you and your partner are using for the team project.
 Use one of the hypothesis-testing tools introduced in the beta diversity module. 
 Interpret the findings of your data with respect to principles of biodiversity. 
 
+```{r}
+#install.packages(dplyr)
+#install.packages("tidyr")
+require(dplyr)
+require(tidyr)
+
+Fungi_path <- "/cloud/project/QB2025_Spencer/MAT_fungal_abundances.txt"
+Fungi_data <- read.table(Fungi_path, header = TRUE, sep = "\t", stringsAsFactors = TRUE)
+Fungi_data$Relative.Abundance <- as.numeric(Fungi_data$Relative.Abundance)
+
+# Slim down the data to only columns needed
+slim <- Fungi_data %>%
+  select(Plot, Treatment, Species, Relative.Abundance)
+
+# Change data so that each species is a column, values are the relative.abundance, and rows are each plot/site
+ExpandFungi_data <- slim %>%
+  pivot_wider(names_from = Species, values_from = Relative.Abundance, values_fill = list(Relative.Abundance = 0))
+
+# Sort the expanded data
+Sorted_ExpandFungi_data <- ExpandFungi_data %>%
+  arrange(Treatment)
+
+# Calculate Bray-Curtis distance
+ExpandFun_data.db <- vegdist(Sorted_ExpandFungi_data[, -c(1,2)], method = "bray", upper = TRUE, diag = TRUE)
+
+# Create a new variable and classify it as a matrix
+heatmap_matrix <- as.matrix(ExpandFun_data.db)
+
+# Assign row and column names using the "Plot" column from Sorted_ExpandFungi_data
+rownames(heatmap_matrix) <- Sorted_ExpandFungi_data$Plot
+colnames(heatmap_matrix) <- Sorted_ExpandFungi_data$Plot
+
+#Ward's Clustering with heat map
+fun.ward <- hclust(ExpandFun_data.db, method = "ward.D2")
+
+par(mar = c(1, 5, 2, 2) + 0.1)
+plot(fun.ward, main = "Fungal Diversity: Ward's Clustering",
+     ylab = "Squared Bray-Curtis Distance")
+
+gplots::heatmap.2(heatmap_matrix,
+                  distfun = function(x) vegdist(x, method = "bray"),
+                  hclustfun = function(x) hclust(x, method = "ward.D2"),
+                  col = viridis, trace = "none", density.info = "none")
+```
+
+```{r}
+# Check and handle missing values
+Fungi_data <- na.omit(Fungi_data)
+
+# Ensure correct data types
+Fungi_data$Treatment <- as.factor(Fungi_data$Treatment)
+Fungi_data$Relative.Abundance <- as.numeric(Fungi_data$Relative.Abundance)
+
+# Verify no negative values
+if (any(Fungi_data$Relative.Abundance < 0)) {
+  stop("Abundance data contains negative values.")
+}
+
+# Replace zero values
+Fungi_data$Relative.Abundance[Fungi_data$Relative.Abundance == 0] <- 0.0001
+
+# Run adonis2
+adonis2_result <- adonis2(Fungi_data$Relative.Abundance ~ Fungi_data$Treatment, method = "bray", permutations = 999)
+print(adonis2_result)
+```
+> The clustering of the treatments is surprising - there isn't an apparent trend to clustering based on treatment that I had initially anticipated. It seems the warmed and fertilized treatments tend to cluster together, but the warmed, fertilized, and control groups cluster more randomly than by treatment. This suggests that there may be no individual impact of either warming or fertilizer, but an effect when in tandem. The PERMANOVA results, however, yield an insignificant p-value. This means that there is no interaction between treatment and fungal diversity. Diversity amongst treatments may be due to more random ecological impacts like dispersal and speciation. 

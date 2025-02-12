@@ -387,7 +387,7 @@ Fungi_data <- read.table(Fungi_path, header = TRUE, sep = "\t", stringsAsFactors
 ```
 ```{r}
 #install.packages(dplyr)
-install.packages("tidyr")
+#install.packages("tidyr")
 require(dplyr)
 require(tidyr)
 
