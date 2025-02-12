@@ -1,0 +1,46 @@
+---
+title: "beta-diversity-fungal"
+output: html_document
+date: "2025-02-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+```{r}
+#reformat data to exclude treatment
+slim2 <- Fungi_data %>%
+  select(Plot, Species, Relative.Abundance)
+
+# Reshape the data
+ExpandFungi_data2 <- slim2 %>%
+  pivot_wider(names_from = Plot, values_from = Relative.Abundance, values_fill = list(Relative.Abundance = 0))
+
+ExpandFungi_data2 <- as.data.frame(ExpandFungi_data2)
+rownames(ExpandFungi_data2) <- ExpandFungi_data2$Species
+ExpandFungi_data2 <- ExpandFungi_data2[, -1]  # Remove the Species column
+
+# Check the result
+dim(ExpandFungi_data2)
+head(ExpandFungi_data2)
+
+# Ensure the Treatment variable is a factor
+Fungi_data$Treatment <- as.factor(Fungi_data$Treatment)
+
+# Run multipatt with the numeric matrix and Treatment as the cluster variable
+indval <- multipatt(ExpandFungi_data2, cluster = Fungi_data$Treatment, func = "IndVal.g", control = how(nperm=999))
+summary(indval)
+
+# Standardize data and run multipatt again
+fun_rel <- decostand(ExpandFungi_data2, method = "total")
+phi <- multipatt(fun_rel, cluster = Fungi_data$Treatment, func = "r.g", control = how(nperm=999))
+summary(phi)
+```
