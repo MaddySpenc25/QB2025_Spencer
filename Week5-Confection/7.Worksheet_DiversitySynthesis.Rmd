@@ -78,6 +78,7 @@ Based on these results, discuss how individual vs. collective sampling efforts c
 
 ```{r}
 jellydata <- read.table("data/Jellybelly_data.txt", sep = "\t", header = TRUE, row.names = 1)
+jellydata <- as.data.frame(jellydata)
 jellydata <- jellydata[, -which(colnames(jellydata) == "Chili.Mango")]
 
 S.obs <- function(x = ""){
@@ -279,20 +280,28 @@ Make some observations about the preference-profiles of the class.
 
 
 ```{r}
+require(viridis)
+
 jellypref <- read.table("data/Jellybelly_pref.txt", sep = "\t", header = TRUE, row.names = 1) 
 
-jellypref.ds <- vegdist(jellypref, method = "bray", diag = TRUE, binary = TRUE)
+# Calculate Bray-Curtis distance
+jellypref.ds <- vegdist(jellypref, method = "bray", upper = TRUE, diag = TRUE)
 
+# Create a new variable and classify it as a matrix
+jellypref.matrix <- as.matrix(jellypref)
+
+#Ward's Clustering with heat map
 jellypref.ward <- hclust(jellypref.ds, method = "ward.D2")
 
 par(mar = c(1, 5, 2, 2) + 0.1)
 plot(jellypref.ward, main = "Jelly Bean Preference: Ward's Clustering",
      ylab = "Squared Bray-Curtis Distance")
 
-gplots::heatmap.2(as.matrix(jellypref),
+
+gplots::heatmap.2(jellypref.matrix,
                   distfun = function(x) vegdist(x, method = "bray"),
                   hclustfun = function(x) hclust(x, method = "ward.D2"),
-                  col = viridis, trace = "none", density.info = "none")
+                  col = "viridis", trace = "none", density.info = "none")
 ```
 
 > ***Answer 4***:
