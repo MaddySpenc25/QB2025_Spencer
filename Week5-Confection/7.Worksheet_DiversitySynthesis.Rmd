@@ -68,6 +68,7 @@ In the R code chunk below, please provide the code to:
 rm(list = ls())
 getwd()
 require(vegan)
+require(dplyr)
 ```
 
 ## DATA ANALYSIS
@@ -76,26 +77,22 @@ require(vegan)
 Based on these results, discuss how individual vs. collective sampling efforts capture the diversity of the source community.
 
 ```{r}
-jellydata <- read.table("data/jellybelly_data.txt", sep = "\t", header = TRUE, row.names = 1) 
-jellypref <- read.table("data/jellybelly_pref.txt", sep = "\t", header = TRUE, row.names = 1) 
-
-jellydata.t <- as.data.frame(t(jellydata))
-jellypref.t <- as.data.frame(t(jellypref))
+jellydata <- read.table("data/Jellybelly_data.txt", sep = "\t", header = TRUE, row.names = 1)
+jellydata <- jellydata[, -which(colnames(jellydata) == "Chili.Mango")]
 
 S.obs <- function(x = ""){
   rowSums( x > 0  ) * 1  
-}
+  }
 
-soilbac.S <- S.obs(soilbac.t)
-min.N <- min(rowSums(soilbac.t))
-S.rarefy <- rarefy(x = soilbac.t, sample = min.N, se = TRUE)
-rarecurve(x = soilbac.t, step = 20, col = "blue", cex = 0.6, las = 1)
+jellydata.S <- S.obs(jellydata)
+min.N <- min(rowSums(jellydata))
+S.rarefy <- rarefy(x = jellydata, sample = min.N, se = TRUE)
+rarecurve(x = jellydata, step = 20, col = "blue", cex = 0.6, las = 1)
 abline(0, 1, col = 'red')
 text(1500, 1500, "1:1", pos = 2, col = 'red')
 ```
 
-> ***Answer 1***:
->
+> ***Answer 1***: Each line above, associated with each person or site, falls below the 1:1 line. This means that the true species richness is being underestimated due to poor sampling efforts. There is also a general trend of larger sample size equal to more observed richness, though there are several "sites" that break this rule. This rarefaction plot demonstrates the power of collective sampling, as each inidividual by themselves does not properly encapsulate the true diversity of the communities. Aggregation of this data into a singular site would bring us much closer to an accurate estimate of richness. 
 
 
 **Question 2:** Starting with the site-by-species matrix, visualize beta diversity.
@@ -104,24 +101,173 @@ Plot the sample scores in species space using different colors, symbols, or labe
 Which "species" are contributing the patterns in the ordinations?
 How does the choice of resemblance matrix affect your interpretation?
 
+```{r, include = FALSE}
+`add.spec.scores.class` <-
+  function(ordi,comm,method="cor.scores",multi=1,Rscale=F,scaling="1") {
+    ordiscores <- scores(ordi,display="sites")
+    n <- ncol(comm)
+    p <- ncol(ordiscores)
+    specscores <- array(NA,dim=c(n,p))
+    rownames(specscores) <- colnames(comm)
+    colnames(specscores) <- colnames(ordiscores)
+    if (method == "cor.scores") {
+      for (i in 1:n) {
+        for (j in 1:p) {specscores[i,j] <- cor(comm[,i],ordiscores[,j],method="pearson")}
+      }
+    }
+    if (method == "wa.scores") {specscores <- wascores(ordiscores,comm)}
+    if (method == "pcoa.scores") {
+      rownames(ordiscores) <- rownames(comm)
+      eigenv <- ordi$eig
+      accounted <- sum(eigenv)
+      tot <- 2*(accounted/ordi$GOF[2])-(accounted/ordi$GOF[1])
+      eigen.var <- eigenv/(nrow(comm)-1)
+      neg <- length(eigenv[eigenv<0])
+      pos <- length(eigenv[eigenv>0])
+      tot <- tot/(nrow(comm)-1)
+      eigen.percen <- 100*eigen.var/tot
+      eigen.cumpercen <- cumsum(eigen.percen)
+      constant <- ((nrow(comm)-1)*tot)^0.25
+      ordiscores <- ordiscores * (nrow(comm)-1)^-0.5 * tot^-0.5 * constant
+      p1 <- min(p, pos)
+      for (i in 1:n) {
+        for (j in 1:p1) {
+          specscores[i,j] <- cor(comm[,i],ordiscores[,j])*sd(comm[,i])/sd(ordiscores[,j])
+          if(is.na(specscores[i,j])) {specscores[i,j]<-0}
+        }
+      }
+      if (Rscale==T && scaling=="2") {
+        percen <- eigen.var/tot
+        percen <- percen^0.5
+        ordiscores <- sweep(ordiscores,2,percen,"/")   
+        specscores <- sweep(specscores,2,percen,"*")
+      }
+      if (Rscale==F) {
+        specscores <- specscores / constant
+        ordiscores <- ordi$points
+      }        
+      ordi$points <- ordiscores
+      ordi$eig <- eigen.var
+      ordi$eig.percen <- eigen.percen
+      ordi$eig.cumpercen <- eigen.cumpercen
+      ordi$eigen.total <- tot
+      ordi$R.constant <- constant
+      ordi$Rscale <- Rscale
+      ordi$scaling <- scaling
+    }
+    specscores <- specscores * multi    
+    ordi$cproj <- specscores
+    return(ordi)
+  }
+```
+
 ```{r}
+#Sorenson's similarity (presence-absence)
+jelly.ds <- vegdist(jellydata, method = "bray", diag = TRUE, binary = TRUE)
 
+jellypcoa.ds <- cmdscale(jelly.ds, eig = TRUE, k = 3)
 
+explainvar1.ds <- round(jellypcoa.ds$eig[1] / sum(jellypcoa.ds$eig), 3) * 100
+explainvar2.ds <- round(jellypcoa.ds$eig[2] / sum(jellypcoa.ds$eig), 3) * 100
+explainvar3.ds <- round(jellypcoa.ds$eig[3] / sum(jellypcoa.ds$eig), 3) * 100
+sumeig.ds <- sum(explainvar1.ds, explainvar2.ds, explainvar3.ds)
+print(sumeig.ds)
+
+par(mar = c(5, 5, 1, 2) + 0.1)
+plot(jellypcoa.ds$points[ ,1], jellypcoa.ds$points[ ,2], ylim = c(-0.4, 0.7),
+     main = "Sorenson's Similarity",
+     xlab = paste("PCoA 1 (", explainvar1.ds, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2.ds, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5,
+     cex.axis = 1.2, axes = FALSE)
+
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+points(jellypcoa.ds$points[ ,1], jellypcoa.ds$points[ ,2],
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+text(jellypcoa.ds$points[ ,1], jellypcoa.ds$points[ ,2],
+     labels = row.names(jellypcoa.ds$points))
+
+jellyREL <- jellydata
+  for(i in 1:nrow(jellydata)){
+    jellyREL[i, ] = jellydata[i, ] / sum(jellydata[i, ])
+  }
+
+jellypcoa.ds <- add.spec.scores.class(jellypcoa.ds,jellyREL, method = "pcoa.scores")
+text(jellypcoa.ds$cproj[,1], jellypcoa.ds$cproj[,2],
+     labels = row.names(jellypcoa.ds$cproj), col = "red")  
+
+#Bray-Curtis dissimilarity (abundance-based)
+jelly.db <- vegdist(jellydata, method = "bray", diag = TRUE)
+
+jellypcoa.db <- cmdscale(jelly.db, eig = TRUE, k = 3)
+
+explainvar1.db <- round(jellypcoa.db$eig[1] / sum(jellypcoa.db$eig), 3) * 100
+explainvar2.db <- round(jellypcoa.db$eig[2] / sum(jellypcoa.db$eig), 3) * 100
+explainvar3.db <- round(jellypcoa.db$eig[3] / sum(jellypcoa.db$eig), 3) * 100
+sumeig.db <- sum(explainvar1.db, explainvar2.db, explainvar3.db)
+print(sumeig.db)
+
+par(mar = c(5, 5, 1, 2) + 0.1)
+plot(jellypcoa.db$points[ ,1], jellypcoa.db$points[ ,2], ylim = c(-0.4, 0.7),
+     main = "Bray-Curtis Dissimilarity",
+     xlab = paste("PCoA 1 (", explainvar1.db, "%)", sep = ""),
+     ylab = paste("PCoA 2 (", explainvar2.db, "%)", sep = ""),
+     pch = 16, cex = 2.0, type = "n", cex.lab = 1.5,
+     cex.axis = 1.2, axes = FALSE)
+
+axis(side = 1, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+axis(side = 2, labels = T, lwd.ticks = 2, cex.axis = 1.2, las = 1)
+abline(h = 0, v = 0, lty = 3)
+box(lwd = 2)
+
+points(jellypcoa.db$points[ ,1], jellypcoa.db$points[ ,2],
+       pch = 19, cex = 3, bg = "gray", col = "gray")
+text(jellypcoa.db$points[ ,1], jellypcoa.db$points[ ,2],
+     labels = row.names(jellypcoa.db$points))
+
+jellypcoa.db <- add.spec.scores.class(jellypcoa.db,jellyREL, method = "pcoa.scores")
+text(jellypcoa.db$cproj[,1], jellypcoa.db$cproj[,2],
+     labels = row.names(jellypcoa.db$cproj), col = "red")  
+```
+
+```{r}
+#influential species using Sorenson's
+jellycorr.ds <- add.spec.scores.class(jellypcoa.ds, jellyREL, method = "cor.scores")$cproj
+corrcut <- 0.7
+impspp.ds <- jellycorr.ds[abs(jellycorr.ds[ ,1]) >= corrcut | abs(jellycorr.ds[ ,2]) >= corrcut, ]
+print(impspp.ds)
+
+fit.ds <- envfit(jellypcoa.ds, jellyREL, perm = 999)
+print(fit.ds)
+
+#influential species using Bray-Curtis
+jellycorr.db <- add.spec.scores.class(jellypcoa.db, jellyREL, method = "cor.scores")$cproj
+corrcut <- 0.7
+impspp.db <- jellycorr.db[abs(jellycorr.db[ ,1]) >= corrcut | abs(jellycorr.db[ ,2]) >= corrcut, ]
+print(impspp.db)
+
+fit.db <- envfit(jellypcoa.db, jellyREL, perm = 999)
+print(fit.db)
 ```
 
 > ***Answer 2***:
->
+> The choice of resemblance matrix does not make a large difference in interpretation. Sorenson's being a presence-absence metric, places equal weight on abundant and rare taxa. We can see that for both axes in our PCoA, using Sorenson's leads to more explanation of variance. The different metrics also influence the influential taxa that drive any clustering differences we see on the PCoA. Insteresntingly, none of the species that stand out on the PCoA maps like raspberry and sour cherry seem to be driving the differences. For both metrics, cantaloupe, cinnamon and red apple are influential species. For Sorenson's, caramel corn and french vanilla are also influential to the correlation coefficients, whereas with Bray-Curtis dissimilairty licorice also drives clustering. 
 
 
 **Question 3** Using the preference-profile matrix, determine the most popular jelly bean in the class using a control structure (e.g., for loop, if statement, function, etc).
 
 ```{r}
-
-
+jellypref.sums <- colSums(jellypref)
+jellypref.sums <- jellypref.sums[order(-jellypref.sums)]
+print(jellypref.sums)
 ```
 
 > ***Answer 3***:
->
+> The most popular flavor is berry blue, with 7 votes total.
 
 
 **Question 4**
@@ -133,8 +279,20 @@ Make some observations about the preference-profiles of the class.
 
 
 ```{r}
+jellypref <- read.table("data/Jellybelly_pref.txt", sep = "\t", header = TRUE, row.names = 1) 
 
+jellypref.ds <- vegdist(jellypref, method = "bray", diag = TRUE, binary = TRUE)
 
+jellypref.ward <- hclust(jellypref.ds, method = "ward.D2")
+
+par(mar = c(1, 5, 2, 2) + 0.1)
+plot(jellypref.ward, main = "Jelly Bean Preference: Ward's Clustering",
+     ylab = "Squared Bray-Curtis Distance")
+
+gplots::heatmap.2(as.matrix(jellypref),
+                  distfun = function(x) vegdist(x, method = "bray"),
+                  hclustfun = function(x) hclust(x, method = "ward.D2"),
+                  col = viridis, trace = "none", density.info = "none")
 ```
 
 > ***Answer 4***:
