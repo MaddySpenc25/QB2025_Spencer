@@ -1,6 +1,6 @@
 ---
 title: '7\. Worksheet: Diversity Synthesis'
-author: "Student Name; Z620: Quantitative Biodiversity, Indiana University"
+author: "Maddy Spencer; Z620: Quantitative Biodiversity, Indiana University"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: pdf_document
 geometry: margin=2.54cm
@@ -65,8 +65,9 @@ In the R code chunk below, please provide the code to:
 4) Load the `vegan` R package (be sure to install first if you have not already).
 
 ```{r}
-
-
+rm(list = ls())
+getwd()
+require(vegan)
 ```
 
 ## DATA ANALYSIS
@@ -75,8 +76,22 @@ In the R code chunk below, please provide the code to:
 Based on these results, discuss how individual vs. collective sampling efforts capture the diversity of the source community.
 
 ```{r}
+jellydata <- read.table("data/jellybelly_data.txt", sep = "\t", header = TRUE, row.names = 1) 
+jellypref <- read.table("data/jellybelly_pref.txt", sep = "\t", header = TRUE, row.names = 1) 
 
+jellydata.t <- as.data.frame(t(jellydata))
+jellypref.t <- as.data.frame(t(jellypref))
 
+S.obs <- function(x = ""){
+  rowSums( x > 0  ) * 1  
+}
+
+soilbac.S <- S.obs(soilbac.t)
+min.N <- min(rowSums(soilbac.t))
+S.rarefy <- rarefy(x = soilbac.t, sample = min.N, se = TRUE)
+rarecurve(x = soilbac.t, step = 20, col = "blue", cex = 0.6, las = 1)
+abline(0, 1, col = 'red')
+text(1500, 1500, "1:1", pos = 2, col = 'red')
 ```
 
 > ***Answer 1***:
