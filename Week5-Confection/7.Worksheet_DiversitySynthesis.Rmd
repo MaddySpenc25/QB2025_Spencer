@@ -262,6 +262,8 @@ print(fit.db)
 **Question 3** Using the preference-profile matrix, determine the most popular jelly bean in the class using a control structure (e.g., for loop, if statement, function, etc).
 
 ```{r}
+jellypref <- read.table("data/Jellybelly_pref.txt", sep = "\t", header = TRUE, row.names = 1) 
+
 jellypref.sums <- colSums(jellypref)
 jellypref.sums <- jellypref.sums[order(-jellypref.sums)]
 print(jellypref.sums)
@@ -280,34 +282,19 @@ Make some observations about the preference-profiles of the class.
 
 
 ```{r}
-require(viridis)
+# Calculate Sorenson's distance
+jellypref.ds <- vegdist(jellypref, method = "bray", diag = TRUE, binary = TRUE)
 
-jellypref <- read.table("data/Jellybelly_pref.txt", sep = "\t", header = TRUE, row.names = 1) 
-
-# Calculate Bray-Curtis distance
-jellypref.ds <- vegdist(jellypref, method = "bray", upper = TRUE, diag = TRUE)
-
-# Create a new variable and classify it as a matrix
-jellypref.matrix <- as.matrix(jellypref)
-
-#Ward's Clustering with heat map
+#Ward's Clustering
 jellypref.ward <- hclust(jellypref.ds, method = "ward.D2")
 
 par(mar = c(1, 5, 2, 2) + 0.1)
 plot(jellypref.ward, main = "Jelly Bean Preference: Ward's Clustering",
      ylab = "Squared Bray-Curtis Distance")
-
-
-gplots::heatmap.2(jellypref.matrix,
-                  distfun = function(x) vegdist(x, method = "bray"),
-                  hclustfun = function(x) hclust(x, method = "ward.D2"),
-                  col = "viridis", trace = "none", density.info = "none")
 ```
 
 > ***Answer 4***:
->
-
-
+> My jelly buddy is Aishwarya, as we share 3 different favorite flavors in common. Overall, there are two general clusters being formed. On  the right side, Elaine and Bryan, and Madison and Jaeyoung form two distinct clusters. El branches off before Madison and Jaeyoung and is not directly clustered with anyone. Madison and Jaeyoung branch off further from the other three, implying more distinct tastes. Aishwarya, Emma, Joselyn, and myself all cluster close together, with Aishwarya and myself clustering more closely. Trang, Yongsoo, Anna, and Ashish cluster together on the right side. There is a larger distance between the two clusters here than was present in the last grouping (that included myself). 
 
 
 ## SUBMITTING YOUR ASSIGNMENT
